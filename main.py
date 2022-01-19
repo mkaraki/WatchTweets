@@ -5,6 +5,18 @@ import time
 import tweepy
 from dotenv import load_dotenv
 
+import notify_tweet
+
+###############################################################################
+# Configurations
+###############################################################################
+
+POLL_INTERVAL = 30
+
+###############################################################################
+# Program
+###############################################################################
+
 
 load_dotenv(override=True)
 
@@ -70,6 +82,9 @@ def getAllNewTweets(client, query, sid=None):
 
         saveTweet(res)
 
+        for tweet in res['data']:
+            notify_tweet.notifyHandler(tweet)
+
         # if tweets are smaller than 10 (fully polled in this round), return
         if (res['meta']['result_count'] < 10):
             return max_sid
@@ -95,6 +110,8 @@ if (os.path.exists(lastsidpath)):
     with open(lastsidpath, 'r') as f:
         sid = json.load(f)['sid']
 
+print('[INFO] Query: "{}" Last SID: {}'.format(query, sid))
+
 while True:
     tsid = sid
     sid = getAllNewTweets(client, query, sid=sid)
@@ -103,4 +120,4 @@ while True:
             json.dump({'sid': sid}, f)
     else:
         sid = tsid
-    time.sleep(30)
+    time.sleep(POLL_INTERVAL)

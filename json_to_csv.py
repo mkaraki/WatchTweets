@@ -17,11 +17,11 @@ for de in os.scandir('./tweets/'):
 
 for tweet_obj in tweet_objs:
     for tweet in tweet_obj[1]['data']:
-        w_csv.append([tweet['id'], tweet['created_at'],
+        w_csv.append([tweet_obj[0], tweet['id'], tweet['created_at'],
                       tweet['author_id'], tweet['text']])
 
 
-w_csv.sort(key=lambda x: x[0])
+w_csv.sort(key=lambda x: x[1])
 w_csv.insert(0, ['id', 'created_at', 'author', 'text'])
 
 
