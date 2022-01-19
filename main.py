@@ -23,8 +23,16 @@ def getClient():
     return client
 
 
-def getTweets(client, query, since_id=None, limit=10):
-    print('[INFO] Download Queued ({} -> {}: {})'.format(since_id, None, limit))
+def saveTweet(tweet):
+    fname = 'tweets/' + tweet['meta']['oldest_id'] + '-' + \
+        tweet['meta']['newest_id'] + '.json'
+
+    with open(fname, 'w') as f:
+        json.dump(tweet, f)
+
+
+def getTweets(client, query, since_id=None, until_id=None, limit=10):
+    print('[INFO] Download Queued ({} -> {}: {})'.format(since_id, until_id, limit))
     return client.search_recent_tweets(
         tweet_fields=['attachments', 'author_id', 'context_annotations', 'created_at', 'entities', 'geo', 'id', 'in_reply_to_user_id', 'lang',
                       'possibly_sensitive', 'public_metrics', 'referenced_tweets', 'source', 'text', 'withheld'],
@@ -38,40 +46,47 @@ def getTweets(client, query, since_id=None, limit=10):
                      'profile_image_url', 'protected', 'public_metrics', 'url', 'username', 'verified', 'withheld'],
         query=query,
         max_results=limit,
-        since_id=since_id)
+        since_id=since_id,
+        until_id=until_id)
 
 
 def getAllNewTweets(client, query, sid=None):
-    for limit in range(10, 100, 10):
-        res = getTweets(client, query, since_id=sid, limit=limit)
+    until_id = None
+    max_sid = None
+
+    while True:
+        res = getTweets(client, query, since_id=sid, until_id=until_id)
+
+        print('[INFO] Downloaded {} tweets'.format(
+            res['meta']['result_count']))
+
+        # if no tweets retrived, return
         if (res['meta']['result_count'] == 0):
             return None
-        elif (res['meta']['result_count'] < limit):
-            return res
 
-        if sid is None:
-            return res
+        # Save latest id as since id to return (for next polling)
+        if (max_sid == None):
+            max_sid = res['meta']['newest_id']
+
+        saveTweet(res)
+
+        # if tweets are smaller than 10 (fully polled in this round), return
+        if (res['meta']['result_count'] < 10):
+            return max_sid
+
+        # if no tweet polling limit is set, return
+        if (sid == None):
+            return max_sid
+
+        # if couldn't poll all tweets,
+        # set until_id to oldest tweet id
+        # (poll tweets between last polled and polled now)
+        until_id = res['meta']['oldest_id']
 
 
-def main(sid=None):
-    query = os.getenv("QUERY")
+query = os.getenv("QUERY")
 
-    client = getClient()
-
-    s_res = getAllNewTweets(
-        client, query, sid=sid)
-
-    if (s_res == None):
-        return None
-
-    fname = s_res['meta']['oldest_id'] + '-' + \
-        s_res['meta']['newest_id'] + '.json'
-
-    with open(fname, 'w') as f:
-        json.dump(s_res, f)
-
-    return s_res['meta']['newest_id']
-
+client = getClient()
 
 lastsidpath = './last_sid.json'
 sid = None
@@ -82,7 +97,7 @@ if (os.path.exists(lastsidpath)):
 
 while True:
     tsid = sid
-    sid = main(sid)
+    sid = getAllNewTweets(client, query, sid=sid)
     if (sid != None):
         with open(lastsidpath, 'w') as f:
             json.dump({'sid': sid}, f)
