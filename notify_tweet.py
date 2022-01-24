@@ -13,9 +13,15 @@ def notifyHandler(tweet):
 
 
 def notifyDiscord(tweet, find_user_info=False):
+    msg = tweet['text']
+
+    if ('entities' in tweet and 'urls' in tweet['entities']):
+        for (i, url) in enumerate(tweet['entities']['urls']):
+            msg = msg.replace(url['url'], url['expanded_url'])
+
     c = {
         'embeds': [{
-            'description': tweet['text'],
+            'description': msg,
             'author': {
                 'name': tweet['author_id'],
                 'url': 'https://twitter.com/intent/user?user_id=' + tweet['author_id'],
