@@ -1,8 +1,9 @@
 import os
 import json
 import time
+import datetime
 
-import tweepy
+from Twitter_Frontend_API import Client
 from dotenv import load_dotenv
 
 import notify_tweet
@@ -22,84 +23,73 @@ load_dotenv(override=True)
 
 
 def getClient():
-    # Twitter API credentials
-    consumer_key = os.getenv("CONSUMER_KEY")
-    consumer_secret = os.getenv("CONSUMER_SECRET")
-    access_token = os.getenv("ACCESS_TOKEN")
-    access_token_secret = os.getenv("ACCESS_TOKEN_SECRET")
-    bearer_token = os.getenv("BEARER_TOKEN")
-
-    client = tweepy.Client(bearer_token, consumer_key, consumer_secret,
-                           access_token, access_token_secret, return_type=dict, wait_on_rate_limit=True)
-
-    return client
+    return Client()
 
 
 def saveTweet(tweet):
-    fname = 'tweets/' + tweet['meta']['oldest_id'] + '-' + \
-        tweet['meta']['newest_id'] + '.json'
+    fname = 'tweets/f_' + min(tweet.items())[0] + '-' + \
+        max(tweet.items())[0] + '.json'
 
     with open(fname, 'w') as f:
-        json.dump(tweet, f)
+        json.dump(list(tweet.values()), f)
 
 
-def getTweets(client, query, since_id=None, until_id=None, limit=10):
-    print('[INFO] Download Queued ({} -> {}: {})'.format(since_id, until_id, limit))
-    return client.search_recent_tweets(
-        tweet_fields=['attachments', 'author_id', 'context_annotations', 'created_at', 'entities', 'geo', 'id', 'in_reply_to_user_id', 'lang',
-                      'possibly_sensitive', 'public_metrics', 'referenced_tweets', 'source', 'text', 'withheld'],
-        media_fields=['duration_ms', 'height', 'media_key', 'preview_image_url',
-                      'public_metrics', 'type', 'url', 'width'],
-        place_fields=['contained_within', 'country', 'country_code',
-                      'full_name', 'geo', 'id', 'name', 'place_type'],
-        poll_fields=['duration_minutes', 'end_datetime',
-                     'id', 'options', 'voting_status'],
-        user_fields=['created_at', 'description', 'entities', 'id', 'location', 'name', 'pinned_tweet_id',
-                     'profile_image_url', 'protected', 'public_metrics', 'url', 'username', 'verified', 'withheld'],
-        query=query,
-        max_results=limit,
-        since_id=since_id,
-        until_id=until_id)
+def getTweets(client, query, since_time=None, until_time=None):
+    print('[INFO] Download Queued ({} -> {})'.format(since_time, until_time))
+
+    q = query
+
+    if (since_time != None):
+        q += ' since:' + str(since_time)
+
+    if (until_time != None):
+        q += ' until:' + str(until_time)
+
+    return client.latest_search(q)['globalObjects']['tweets']
 
 
-def getAllNewTweets(client, query, sid=None):
-    until_id = None
-    max_sid = None
+def getAllNewTweets(client, query, stime=None):
+    until_time = None
+    max_time = None
 
     while True:
-        res = getTweets(client, query, since_id=sid, until_id=until_id)
+        res = getTweets(client, query, since_time=stime, until_time=until_time)
 
         print('[INFO] Downloaded {} tweets'.format(
-            res['meta']['result_count']))
+            len(res)))
 
         # if no tweets retrived, return
-        if (res['meta']['result_count'] == 0):
-            if (max_sid is None):
+        if (len(res) == 0):
+            if (max_time is None):
                 return None
             else:
-                return max_sid
+                return max_time
+
+        for tweet in res.values():
+            tweet['created_at_unixtime'] = time.mktime(
+                datetime.datetime.strptime(tweet['created_at'], "%a %b %d %H:%M:%S %z %Y").timetuple())
 
         # Save latest id as since id to return (for next polling)
-        if (max_sid == None):
-            max_sid = res['meta']['newest_id']
+        if (max_time == None):
+            max_time = min(res.items())[1]['created_at_unixtime']
 
         saveTweet(res)
 
-        for tweet in res['data']:
+        for tweet in res.values():
             notify_tweet.notifyHandler(tweet)
 
-        # if tweets are smaller than 10 (fully polled in this round), return
-        if (res['meta']['result_count'] < 10):
-            return max_sid
+        # if tweets are smaller than 20 (fully polled in this round), return
+        if (len(res) < 20):
+            return max_time
 
         # if no tweet polling limit is set, return
-        if (sid == None):
-            return max_sid
+        if (stime == None):
+            return max_time
 
         # if couldn't poll all tweets,
         # set until_id to oldest tweet id
         # (poll tweets between last polled and polled now)
-        until_id = res['meta']['oldest_id']
+        until_time = min(res.items())[1]['created_at_unixtime']
 
 
 query = os.getenv("QUERY")
@@ -107,20 +97,22 @@ query = os.getenv("QUERY")
 client = getClient()
 
 lastsidpath = './last_sid.json'
-sid = None
+stime = None
 
 if (os.path.exists(lastsidpath)):
     with open(lastsidpath, 'r') as f:
-        sid = json.load(f)['sid']
+        j = json.load(f)
+        if ('stime' in j):
+            stime = j['stime']
 
-print('[INFO] Query: "{}" Last SID: {}'.format(query, sid))
+print('[INFO] Query: "{}" Last STIME: {}'.format(query, stime))
 
 while True:
-    tsid = sid
-    sid = getAllNewTweets(client, query, sid=sid)
-    if (sid != None):
+    tstime = stime
+    stime = getAllNewTweets(client, query, stime=stime)
+    if (stime != None):
         with open(lastsidpath, 'w') as f:
-            json.dump({'sid': sid}, f)
+            json.dump({'stime': stime}, f)
     else:
-        sid = tsid
+        stime = tstime
     time.sleep(POLL_INTERVAL)

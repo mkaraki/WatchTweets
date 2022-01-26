@@ -1,5 +1,6 @@
 import json
 import os
+import datetime
 
 import requests
 from dotenv import load_dotenv
@@ -19,20 +20,23 @@ def notifyDiscord(tweet, find_user_info=False):
         for (i, url) in enumerate(tweet['entities']['urls']):
             msg = msg.replace(url['url'], url['expanded_url'])
 
+    time = datetime.datetime.fromtimestamp(
+        tweet['created_at_unixtime']).isoformat()
+
     c = {
         'embeds': [{
             'description': msg,
             'author': {
-                'name': tweet['author_id'],
-                'url': 'https://twitter.com/intent/user?user_id=' + tweet['author_id'],
+                'name': tweet['user_id_str'],
+                'url': 'https://twitter.com/intent/user?user_id=' + tweet['user_id_str'],
             },
             'title': 'Tweet',
-            'url': 'https://twitter.com/intent/like?tweet_id=' + tweet['id'],
+            'url': 'https://twitter.com/intent/like?tweet_id=' + tweet['id_str'],
             'footer': {
                 'text': 'Twitter',
                 'icon_url': 'http://github.com/twitter.png',
             },
-            'timestamp': tweet['created_at'],
+            'timestamp': time,
         }]
     }
     requests.post(os.getenv('DISCORD_WEBHOOK_URL'), json.dumps(
