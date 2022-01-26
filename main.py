@@ -48,13 +48,13 @@ def getTweets(client, query, since_id=None, until_id=None, limit=10):
     return client.search_recent_tweets(
         tweet_fields=['attachments', 'author_id', 'context_annotations', 'created_at', 'entities', 'geo', 'id', 'in_reply_to_user_id', 'lang',
                       'possibly_sensitive', 'public_metrics', 'referenced_tweets', 'source', 'text', 'withheld'],
-        media_fields=['duration_ms,height', 'media_key', 'preview_image_url',
+        media_fields=['duration_ms', 'height', 'media_key', 'preview_image_url',
                       'public_metrics', 'type', 'url', 'width'],
         place_fields=['contained_within', 'country', 'country_code',
                       'full_name', 'geo', 'id', 'name', 'place_type'],
         poll_fields=['duration_minutes', 'end_datetime',
                      'id', 'options', 'voting_status'],
-        user_fields=['created_at', 'description', 'entities', 'id', 'location,name', 'pinned_tweet_id',
+        user_fields=['created_at', 'description', 'entities', 'id', 'location', 'name', 'pinned_tweet_id',
                      'profile_image_url', 'protected', 'public_metrics', 'url', 'username', 'verified', 'withheld'],
         query=query,
         max_results=limit,
@@ -74,7 +74,10 @@ def getAllNewTweets(client, query, sid=None):
 
         # if no tweets retrived, return
         if (res['meta']['result_count'] == 0):
-            return None
+            if (max_sid is None):
+                return None
+            else:
+                return max_sid
 
         # Save latest id as since id to return (for next polling)
         if (max_sid == None):
