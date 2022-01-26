@@ -1,6 +1,6 @@
 import json
 import os
-import datetime
+from datetime import datetime
 
 import requests
 from dotenv import load_dotenv
@@ -20,7 +20,7 @@ def notifyDiscord(tweet, find_user_info=False):
         for (i, url) in enumerate(tweet['entities']['urls']):
             msg = msg.replace(url['url'], url['expanded_url'])
 
-    time = datetime.datetime.fromtimestamp(
+    time = datetime.fromtimestamp(
         tweet['created_at_unixtime']).isoformat()
 
     c = {

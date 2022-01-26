@@ -1,7 +1,8 @@
 import os
 import json
 import time
-import datetime
+import calendar
+from datetime import datetime
 
 from Twitter_Frontend_API import Client
 from dotenv import load_dotenv
@@ -40,10 +41,14 @@ def getTweets(client, query, since_time=None, until_time=None):
     q = query
 
     if (since_time != None):
-        q += ' since:' + str(since_time)
+        dt = datetime.utcfromtimestamp(since_time + 1)
+        q += ' since:' + dt.strftime('%Y-%m-%d_%H:%M:%S_UTC')
 
     if (until_time != None):
-        q += ' until:' + str(until_time)
+        dt = datetime.utcfromtimestamp(until_time)
+        q += ' until:' + dt.strftime('%Y-%m-%d_%H:%M:%S_UTC')
+
+    print(q)
 
     return client.latest_search(q)['globalObjects']['tweets']
 
@@ -66,12 +71,13 @@ def getAllNewTweets(client, query, stime=None):
                 return max_time
 
         for tweet in res.values():
-            tweet['created_at_unixtime'] = time.mktime(
-                datetime.datetime.strptime(tweet['created_at'], "%a %b %d %H:%M:%S %z %Y").timetuple())
+            tweet['created_at_unixtime'] = int(calendar.timegm(
+                datetime.strptime(tweet['created_at'], "%a %b %d %H:%M:%S %z %Y").timetuple()))
 
         # Save latest id as since id to return (for next polling)
         if (max_time == None):
-            max_time = min(res.items())[1]['created_at_unixtime']
+            max_time = max(list(res.values()), key=lambda x: x['created_at_unixtime']).get(
+                'created_at_unixtime')
 
         saveTweet(res)
 
@@ -89,7 +95,8 @@ def getAllNewTweets(client, query, stime=None):
         # if couldn't poll all tweets,
         # set until_id to oldest tweet id
         # (poll tweets between last polled and polled now)
-        until_time = min(res.items())[1]['created_at_unixtime']
+        until_time = min(list(res.values()), key=lambda x: x['created_at_unixtime']).get(
+            'created_at_unixtime')
 
 
 query = os.getenv("QUERY")
