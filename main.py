@@ -7,8 +7,6 @@ from datetime import datetime
 from Twitter_Frontend_API import Client
 from dotenv import load_dotenv
 
-import notify_tweet
-
 ###############################################################################
 # Configurations
 ###############################################################################
@@ -66,9 +64,9 @@ def getAllNewTweets(client, query, stime=None):
         # if no tweets retrived, return
         if (len(res) == 0):
             if (max_time is None):
-                return None
+                return None, []
             else:
-                return max_time
+                return max_time, []
 
         for tweet in res.values():
             tweet['created_at_unixtime'] = int(calendar.timegm(
@@ -79,18 +77,10 @@ def getAllNewTweets(client, query, stime=None):
             max_time = max(list(res.values()), key=lambda x: x['created_at_unixtime']).get(
                 'created_at_unixtime')
 
-        saveTweet(res)
-
-        for tweet in res.values():
-            notify_tweet.notifyHandler(tweet)
-
-        # if tweets are smaller than 20 (fully polled in this round), return
-        if (len(res) < 20):
-            return max_time
-
-        # if no tweet polling limit is set, return
-        if (stime == None):
-            return max_time
+        # if tweets are smaller than 20 (fully polled in this round)
+        # or, if no tweet polling limit is set, return
+        if (stime == None or len(res) < 20):
+            return max_time, res
 
         # if couldn't poll all tweets,
         # set until_id to oldest tweet id
@@ -99,27 +89,44 @@ def getAllNewTweets(client, query, stime=None):
             'created_at_unixtime')
 
 
-query = os.getenv("QUERY")
+if __name__ == '__main__':
+    import notify_tweet
 
-client = getClient()
+    query = os.getenv("QUERY")
 
-lastsidpath = './last_sid.json'
-stime = None
+    client = getClient()
 
-if (os.path.exists(lastsidpath)):
-    with open(lastsidpath, 'r') as f:
-        j = json.load(f)
-        if ('stime' in j):
-            stime = j['stime']
+    lastsidpath = './last_sid.json'
+    stime = None
 
-print('[INFO] Query: "{}" Last STIME: {}'.format(query, stime))
+    if (os.path.exists(lastsidpath)):
+        with open(lastsidpath, 'r') as f:
+            j = json.load(f)
+            if ('stime' in j):
+                stime = j['stime']
 
-while True:
-    tstime = stime
-    stime = getAllNewTweets(client, query, stime=stime)
-    if (stime != None):
-        with open(lastsidpath, 'w') as f:
-            json.dump({'stime': stime}, f)
-    else:
-        stime = tstime
-    time.sleep(POLL_INTERVAL)
+    print('[INFO] Query: "{}" Last STIME: {}'.format(query, stime))
+
+    while True:
+        tstime = stime
+        stime, res = getAllNewTweets(client, query, stime=stime)
+
+        if (len(res) > 0):
+            # Save Tweets to file
+            saveTweet(res)
+
+            # Invoke notify handler
+            for tweet in res.values():
+                notify_tweet.notifyHandler(tweet)
+
+        # Save last id
+        if (stime != None):
+            with open(lastsidpath, 'w') as f:
+                json.dump({'stime': stime}, f)
+        else:
+            # If cannot got any last id information,
+            # Re-use last id information from last polling.
+            stime = tstime
+
+        # Wait for next polling
+        time.sleep(POLL_INTERVAL)
