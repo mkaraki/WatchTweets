@@ -48,7 +48,9 @@ def getTweets(client, query, since_time=None, until_time=None):
 
     print(q)
 
-    return client.latest_search(q)['globalObjects']['tweets']
+    d = client.latest_search(q)
+    if ('globalObjects' in d and 'tweets' in d['globalObjects']):
+        return d['globalObjects']['tweets']
 
 
 def getAllNewTweets(client, query, stime=None):
