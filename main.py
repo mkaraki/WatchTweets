@@ -56,6 +56,7 @@ def getTweets(client, query, since_time=None, until_time=None):
 def getAllNewTweets(client, query, stime=None):
     until_time = None
     max_time = None
+    last_res = {}
 
     while True:
         res = getTweets(client, query, since_time=stime, until_time=until_time)
@@ -82,10 +83,12 @@ def getAllNewTweets(client, query, stime=None):
             max_time = max(list(res.values()), key=lambda x: x['created_at_unixtime']).get(
                 'created_at_unixtime')
 
+        last_res.update(res)
+
         # if tweets are smaller than 20 (fully polled in this round)
         # or, if no tweet polling limit is set, return
         if (stime == None or len(res) < 20):
-            return max_time, res
+            return max_time, last_res
 
         # if couldn't poll all tweets,
         # set until_id to oldest tweet id
