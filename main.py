@@ -60,6 +60,9 @@ def getAllNewTweets(client, query, stime=None):
     while True:
         res = getTweets(client, query, since_time=stime, until_time=until_time)
 
+        if (res == None):
+            return None, []
+
         print('[INFO] Downloaded {} tweets'.format(
             len(res)))
 
