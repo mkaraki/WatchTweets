@@ -62,7 +62,7 @@ def getAllNewTweets(client, query, stime=None):
         res = getTweets(client, query, since_time=stime, until_time=until_time)
 
         if (res == None):
-            return None, []
+            return None, last_res
 
         print('[INFO] Downloaded {} tweets'.format(
             len(res)))
@@ -70,9 +70,9 @@ def getAllNewTweets(client, query, stime=None):
         # if no tweets retrived, return
         if (len(res) == 0):
             if (max_time is None):
-                return None, []
+                return None, last_res
             else:
-                return max_time, []
+                return max_time, last_res
 
         for tweet in res.values():
             tweet['created_at_unixtime'] = int(calendar.timegm(
