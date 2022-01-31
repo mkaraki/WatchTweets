@@ -102,6 +102,7 @@ if __name__ == '__main__':
 
     query = os.getenv("QUERY")
 
+    last_client_retrive_time = time.time()
     client = getClient()
 
     lastsidpath = './last_sid.json'
@@ -116,6 +117,10 @@ if __name__ == '__main__':
     print('[INFO] Query: "{}" Last STIME: {}'.format(query, stime))
 
     while True:
+        if (time.time() - last_client_retrive_time > 3600):
+            client = getClient()
+            last_client_retrive_time = time.time()
+
         tstime = stime
         stime, res = getAllNewTweets(client, query, stime=stime)
 
