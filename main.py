@@ -22,6 +22,7 @@ load_dotenv(override=True)
 
 
 def getClient():
+    print('[INFO] Initializing Twitter Client')
     return Client()
 
 
@@ -62,6 +63,7 @@ def getAllNewTweets(client, query, stime=None):
         res = getTweets(client, query, since_time=stime, until_time=until_time)
 
         if (res == None):
+            print('[INFO] Twitter send empty response')
             return None, last_res
 
         print('[INFO] Downloaded {} tweets'.format(
@@ -117,8 +119,10 @@ if __name__ == '__main__':
     print('[INFO] Query: "{}" Last STIME: {}'.format(query, stime))
 
     while True:
-        if (time.time() - last_client_retrive_time > 3600):
-            client = getClient()
+        if (time.time() - last_client_retrive_time > 1800):
+            print('[INFO] Update tokens')
+            client.guest_token = client.generate_token()['guest_token']
+            client.headers['x-guest-token'] = client.guest_token
             last_client_retrive_time = time.time()
 
         tstime = stime
