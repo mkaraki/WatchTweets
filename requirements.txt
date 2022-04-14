@@ -9,3 +9,5 @@ python_dotenv
 
 # notify_tweet.py
 requests
+
+bs4
