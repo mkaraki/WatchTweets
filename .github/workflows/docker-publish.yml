@@ -9,7 +9,7 @@ on:
   schedule:
     - cron: '45 21 * * *'
   push:
-    branches: [ master ]
+    branches: [ master, tw-frontapi ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
